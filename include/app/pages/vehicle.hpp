@@ -78,10 +78,11 @@ class DataTab : public QWidget {
 
    public:
     DataTab(Arbiter &arbiter, QWidget *parent = nullptr);
+    QWidget *speedo_tach_widget();
 
    private:
     Arbiter &arbiter;
-    QWidget *speedo_tach_widget();
+    QWidget *main_widget();
     // QWidget *mileage_data_widget();
     QWidget *engine_data_widget();
     QWidget *coolant_temp_widget();

@@ -4,9 +4,35 @@
 
 #include "app/window.hpp"
 #include "app/action.hpp"
+#include <unistd.h>
+
+bool is_interface_online(std::string interface) {
+    struct ifreq ifr;
+    int sock = socket(PF_INET6, SOCK_DGRAM, IPPROTO_IP);
+    memset(&ifr, 0, sizeof(ifr));
+    strcpy(ifr.ifr_name, interface.c_str());
+    if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) {
+            perror("SIOCGIFFLAGS");
+    }
+    close(sock);
+    return !!(ifr.ifr_flags & IFF_UP);
+}
 
 int main(int argc, char *argv[])
 {
+    //for(int i = 0; i < 50; i++) {
+        //system("ip link add dev vcan0 type vcan");
+        //system("ip link set vcan0 mtu 16");
+        //system("ip link set up vcan0");
+        system("ip link set can0 type can bitrate 500000");
+        system("ip link set up can0");
+    //    sleep(10);
+    //    if(is_interface_online("vcan0")) {
+    //        break;
+    //    }
+    //}
+    
+
     QApplication dash(argc, argv);
 
     dash.setOrganizationName("openDsh");

@@ -218,12 +218,12 @@ void Arbiter::set_volume(uint8_t volume)
 
 void Arbiter::decrease_volume(uint8_t val)
 {
-    this->set_volume(std::min(std::max(0, this->system().volume - val), 100));
+    this->set_volume(std::min(std::max(0, this->system().volume - val), 255));
 }
 
 void Arbiter::increase_volume(uint8_t val)
 {
-    this->set_volume(std::min(std::max(0, this->system().volume + val), 100));
+    this->set_volume(std::min(std::max(0, this->system().volume + val), 255));
 }
 
 void Arbiter::set_cursor(bool enabled)

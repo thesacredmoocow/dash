@@ -5,6 +5,7 @@
 #include "app/quick_views/quick_view.hpp"
 #include "app/utilities/icon_engine.hpp"
 #include "app/widgets/dialog.hpp"
+#include "app/pages/vehicle.hpp"
 
 #include "app/window.hpp"
 
@@ -50,8 +51,8 @@ Dash::Dash(Arbiter &arbiter)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    layout->addLayout(this->rail.layout);
     layout->addLayout(this->body.layout);
+    layout->addLayout(this->rail.layout);
 
     connect(&this->rail.group, QOverload<int>::of(&QButtonGroup::buttonPressed), [this](int id){
         this->arbiter.set_curr_page(id);
@@ -82,7 +83,7 @@ void Dash::init()
         button->setCheckable(true);
         button->setFlat(true);
         QIcon icon(new StylizedIconEngine(this->arbiter, QString(":/icons/%1.svg").arg(page->icon_name()), true));
-        this->arbiter.forge().iconize(icon, button, 32);
+        this->arbiter.forge().iconize(icon, button, 50);
 
         this->rail.group.addButton(button, this->arbiter.layout().page_id(page));
         this->rail.layout->addWidget(button);
@@ -105,20 +106,17 @@ void Dash::set_page(Page *page)
 
 QWidget *Dash::status_bar() const
 {
+    auto *datatab = new DataTab(this->arbiter);
+    QWidget *driving_data = datatab->speedo_tach_widget();
+    
     auto widget = new QWidget();
     widget->setObjectName("StatusBar");
     auto layout = new QHBoxLayout(widget);
-    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setContentsMargins(30, 0, 0, 0);
     layout->setSpacing(0);
 
-    auto clock = new QLabel();
-    clock->setFont(this->arbiter.forge().font(10, true));
-    clock->setAlignment(Qt::AlignCenter);
-    layout->addWidget(clock);
-
-    connect(&this->arbiter.system().clock, &Clock::ticked, [clock](QTime time){
-        clock->setText(QLocale().toString(time, QLocale::ShortFormat));
-    });
+    layout->addWidget(driving_data);
+    layout->addStretch(50);
 
     widget->setVisible(this->arbiter.layout().status_bar);
     connect(&this->arbiter, &Arbiter::status_bar_changed, [widget](bool enabled){
@@ -133,8 +131,12 @@ QWidget *Dash::control_bar() const
     auto widget = new QWidget();
     widget->setObjectName("ControlBar");
     auto layout = new QHBoxLayout(widget);
-    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setContentsMargins(30, 0, 0, 0);
     layout->setSpacing(0);
+
+    auto clock = new QLabel();
+    clock->setFont(this->arbiter.forge().font(20, true));
+    layout->addWidget(clock);
 
     auto quick_views = new QStackedLayout();
     quick_views->setContentsMargins(0, 0, 0, 0);
@@ -150,18 +152,22 @@ QWidget *Dash::control_bar() const
 
     layout->addStretch();
 
+    connect(&this->arbiter.system().clock, &Clock::ticked, [clock](QTime time){
+        clock->setText(QLocale().toString(time, QLocale::ShortFormat));
+    });
+
     auto dialog = new Dialog(this->arbiter, true, this->arbiter.window());
     dialog->set_title("Power Off");
     dialog->set_body(this->power_control());
     auto shutdown = new QPushButton();
     shutdown->setFlat(true);
-    this->arbiter.forge().iconize("power_settings_new", shutdown, 26);
+    this->arbiter.forge().iconize("power_settings_new", shutdown, 40);
     layout->addWidget(shutdown);
     connect(shutdown, &QPushButton::clicked, [dialog]{ dialog->open(); });
 
     auto exit = new QPushButton();
     exit->setFlat(true);
-    this->arbiter.forge().iconize("close", exit, 26);
+    this->arbiter.forge().iconize("close", exit, 40);
     layout->addWidget(exit);
     connect(exit, &QPushButton::clicked, []{ qApp->exit(); });
 

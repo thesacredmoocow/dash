@@ -30,6 +30,7 @@ struct Request : Message {
 struct Response : Message {
     bool success = true;
     QByteArray data;
+    QByteArray raw_data;
 
     Response(QByteArray payload)
     {
@@ -37,6 +38,7 @@ struct Response : Message {
         if(length > 0) this->mode = payload.at(1)-0x40;
         if(length > 1) this->PID = payload.at(2);
         if(length > 2) data = payload.mid(3);
+        raw_data = payload;
         
     }
 

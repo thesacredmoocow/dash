@@ -33,8 +33,8 @@ Gauge::Gauge(units_t units, QFont value_font, QFont unit_font, Gauge::Orientatio
     using namespace std::placeholders;
     std::function<void(QByteArray)> callback = std::bind(&Gauge::can_callback, this, std::placeholders::_1);
 
-    bus->registerFrameHandler(cmds[0].frame.frameId()+0x9, callback);
-    DASH_LOG(info)<<"[Gauges] Registered frame handler for id "<<(cmds[0].frame.frameId()+0x9);
+    bus->registerFrameHandler(cmds[0].frame.frameId(), callback);
+    DASH_LOG(info)<<"[Gauges] Registered frame handler for id "<<(cmds[0].frame.frameId());
 
     this->si = config->get_si_units();
 
@@ -60,9 +60,9 @@ Gauge::Gauge(units_t units, QFont value_font, QFont unit_font, Gauge::Orientatio
 
     this->timer = new QTimer(this);
     connect(this->timer, &QTimer::timeout, [this, bus, cmds]() {
-        for (auto cmd : cmds) {
+        /*for (auto cmd : cmds) {
             bus->writeFrame(cmd.frame);
-        }
+        }*/
     });
 
     connect(config, &Config::si_units_changed, [this, units, unit_label](bool si) {
@@ -80,11 +80,8 @@ Gauge::Gauge(units_t units, QFont value_font, QFont unit_font, Gauge::Orientatio
 
 void Gauge::can_callback(QByteArray payload){
     Response resp = Response(payload);
-    for(auto cmd : cmds){
-        if(cmd.frame.payload().at(2) == resp.PID){
-            value_label->setText(this->format_value(this->decoder(cmd.decoder(resp), this->si)));
-        }
-    }
+    //DASH_LOG(info)<<"[Gauges] received canbus" << cmds[0].decoder(resp);
+    value_label->setText(this->format_value(this->decoder(cmds[0].decoder(resp), this->si)));
 }
 
 QString Gauge::format_value(double value)
@@ -333,7 +330,7 @@ DataTab::DataTab(Arbiter &arbiter, QWidget *parent)
 {
     QHBoxLayout *layout = new QHBoxLayout(this);
 
-    QWidget *driving_data = this->speedo_tach_widget();
+    QWidget *driving_data = this->main_widget();
     layout->addWidget(driving_data);
     layout->addWidget(Session::Forge::br(true));
 
@@ -353,6 +350,49 @@ DataTab::DataTab(Arbiter &arbiter, QWidget *parent)
 QWidget *DataTab::speedo_tach_widget()
 {
     QWidget *widget = new QWidget(this);
+    QHBoxLayout *layout = new QHBoxLayout(widget);
+    layout->setContentsMargins(0, 0, 0, 0);
+
+    layout->addStretch(3);
+
+    QFont speed_value_font(this->arbiter.forge().font(40, true));
+
+    QFont speed_unit_font(this->arbiter.forge().font(12));
+    speed_unit_font.setWeight(QFont::Light);
+    speed_unit_font.setItalic(true);
+
+    Gauge *speed = new Gauge({"mph", ""}, speed_value_font, speed_unit_font,
+                             Gauge::RIGHT, 100, {cmds.SPEED}, 0,
+                             [](double x, bool si) { return si ? x : kph_to_mph(x); }, widget);
+    speed->setMinimumSize(200, 0);
+    layout->addWidget(speed);
+    this->gauges.push_back(speed);
+
+    //layout->addStretch(50);
+
+    layout->addStretch();
+    layout->addWidget(Session::Forge::br());
+    layout->addStretch();
+
+    QFont tach_value_font(this->arbiter.forge().font(40, true));
+
+    QFont tach_unit_font(this->arbiter.forge().font(12));
+    tach_unit_font.setWeight(QFont::Light);
+    //tach_unit_font.setItalic(true);
+
+    Gauge *rpm = new Gauge({" RPM ", " RPM "}, tach_value_font,
+                           tach_unit_font, Gauge::RIGHT, 100, {cmds.RPM}, 1,
+                           [](double x, bool _) { return x / 1000.0; }, widget);
+    layout->addWidget(rpm);
+    this->gauges.push_back(rpm);
+
+    layout->addStretch(1);
+    return widget;
+}
+
+QWidget *DataTab::main_widget()
+{
+    QWidget *widget = new QWidget(this);
     QVBoxLayout *layout = new QVBoxLayout(widget);
     layout->setContentsMargins(0, 0, 0, 0);
 
@@ -362,7 +402,7 @@ QWidget *DataTab::speedo_tach_widget()
 
     QFont speed_unit_font(this->arbiter.forge().font(16));
     speed_unit_font.setWeight(QFont::Light);
-    speed_unit_font.setItalic(true);
+    //speed_unit_font.setItalic(true);
 
     Gauge *speed = new Gauge({"mph", "km/h"}, speed_value_font, speed_unit_font,
                              Gauge::BOTTOM, 100, {cmds.SPEED}, 0,
@@ -376,7 +416,7 @@ QWidget *DataTab::speedo_tach_widget()
 
     QFont tach_unit_font(this->arbiter.forge().font(12));
     tach_unit_font.setWeight(QFont::Light);
-    tach_unit_font.setItalic(true);
+    //tach_unit_font.setItalic(true);
 
     Gauge *rpm = new Gauge({"x1000rpm", "x1000rpm"}, tach_value_font,
                            tach_unit_font, Gauge::BOTTOM, 100, {cmds.RPM}, 1,
@@ -445,7 +485,7 @@ QWidget *DataTab::coolant_temp_widget()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    QFont value_font(this->arbiter.forge().font(16, true));
+    QFont value_font(this->arbiter.forge().font(36, true));
 
     QFont unit_font(this->arbiter.forge().font(12));
     unit_font.setWeight(QFont::Light);
@@ -475,22 +515,22 @@ QWidget *DataTab::engine_load_widget()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
-    QFont value_font(this->arbiter.forge().font(16, true));
+    QFont value_font(this->arbiter.forge().font(36, true));
 
     QFont unit_font(this->arbiter.forge().font(12));
     unit_font.setWeight(QFont::Light);
     unit_font.setItalic(true);
 
     Gauge *engine_load =
-        new Gauge({"%", "%"}, value_font, unit_font, Gauge::RIGHT,
-                  500, {cmds.LOAD}, 1, [](double x, bool _) { return x; }, widget);
+        new Gauge({"°F", "°C"}, value_font, unit_font, Gauge::RIGHT,
+                  500, {cmds.LOAD}, 1, [](double x, bool si) { return si ? x : c_to_f(x); }, widget);
     layout->addWidget(engine_load);
     this->gauges.push_back(engine_load);
 
     QFont label_font(this->arbiter.forge().font(10));
     label_font.setWeight(QFont::Light);
 
-    QLabel *engine_load_label = new QLabel("load", widget);
+    QLabel *engine_load_label = new QLabel("oil", widget);
     engine_load_label->setFont(label_font);
     engine_load_label->setAlignment(Qt::AlignHCenter);
     layout->addWidget(engine_load_label);
